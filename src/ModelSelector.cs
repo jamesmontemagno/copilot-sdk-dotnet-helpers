@@ -4,11 +4,6 @@ using System.Text.RegularExpressions;
 namespace Refractored.GitHub.Copilot.SDK.Helpers;
 
 /// <summary>
-/// Model metadata including pricing tier information.
-/// </summary>
-public record ModelInfo(string Name, string PricingTier);
-
-/// <summary>
 /// Handles model selection for Copilot sessions.
 /// Fetches available models directly from the Copilot CLI.
 /// </summary>
@@ -18,36 +13,7 @@ public static partial class ModelSelector
     private static partial Regex QuotedModelRegex();
 
     /// <summary>
-    /// Pricing tier mapping for available models.
-    /// 1x = Standard pricing
-    /// 0.33x = Discounted pricing (e.g., haiku/mini models)
-    /// 0x = Free tier (if available)
-    /// </summary>
-    private static readonly Dictionary<string, string> ModelPricingTiers = new()
-    {
-        // Claude models
-        { "claude-opus-4.5", "1x" },
-        { "claude-sonnet-4.5", "1x" },
-        { "claude-sonnet-4", "1x" },
-        { "claude-haiku-4.5", "0.33x" },
-        
-        // GPT-5 models
-        { "gpt-5.2-codex", "1x" },
-        { "gpt-5.2", "1x" },
-        { "gpt-5.1-codex-max", "1x" },
-        { "gpt-5.1-codex", "1x" },
-        { "gpt-5.1", "1x" },
-        { "gpt-5", "1x" },
-        { "gpt-5.1-codex-mini", "0.33x" },
-        { "gpt-5-mini", "0.33x" },
-        { "gpt-4.1", "0.33x" },
-        
-        // Gemini models
-        { "gemini-3-pro-preview", "1x" },
-    };
-
-    /// <summary>
-    /// Fetches the list of available models from the Copilot CLI as strings.
+    /// Fetches the list of available models from the Copilot CLI.
     /// </summary>
     /// <returns>Array of model names, or null if unavailable.</returns>
     public static async Task<string[]?> GetModelsFromCliAsync()
