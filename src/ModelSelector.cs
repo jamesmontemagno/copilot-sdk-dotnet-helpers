@@ -114,28 +114,7 @@ public static partial class ModelSelector
     }
 
     /// <summary>
-    /// Fetches available models with pricing information as a dictionary.
-    /// Pricing information is returned from the CLI if available.
-    /// </summary>
-    /// <returns>Dictionary mapping model names to their pricing modifiers, or null if models unavailable.</returns>
-    public static async Task<Dictionary<string, string>?> GetModelsWithPricingAsync()
-    {
-        var models = await GetModelsFromCliAsync();
-        
-        if (models == null || models.Length == 0)
-            return null;
-        
-        var result = new Dictionary<string, string>();
-        foreach (var model in models)
-        {
-            result[model] = "unknown";
-        }
-        
-        return result;
-    }
-
-    /// <summary>
-    /// Prompts the user to select a model from available options via console, showing pricing tiers.
+    /// Prompts the user to select a model from available options via console.
     /// </summary>
     /// <returns>The selected model ID, or null if no models available.</returns>
     public static async Task<string?> SelectModelAsync()
