@@ -4,6 +4,11 @@ using System.Text.RegularExpressions;
 namespace Refractored.GitHub.Copilot.SDK.Helpers;
 
 /// <summary>
+/// Model metadata including pricing tier information.
+/// </summary>
+public record ModelInfo(string Name, string PricingTier);
+
+/// <summary>
 /// Handles model selection for Copilot sessions.
 /// Fetches available models directly from the Copilot CLI.
 /// </summary>
@@ -13,7 +18,36 @@ public static partial class ModelSelector
     private static partial Regex QuotedModelRegex();
 
     /// <summary>
-    /// Fetches the list of available models from the Copilot CLI.
+    /// Pricing tier mapping for available models.
+    /// 1x = Standard pricing
+    /// 0.33x = Discounted pricing (e.g., haiku/mini models)
+    /// 0x = Free tier (if available)
+    /// </summary>
+    private static readonly Dictionary<string, string> ModelPricingTiers = new()
+    {
+        // Claude models
+        { "claude-opus-4.5", "1x" },
+        { "claude-sonnet-4.5", "1x" },
+        { "claude-sonnet-4", "1x" },
+        { "claude-haiku-4.5", "0.33x" },
+        
+        // GPT-5 models
+        { "gpt-5.2-codex", "1x" },
+        { "gpt-5.2", "1x" },
+        { "gpt-5.1-codex-max", "1x" },
+        { "gpt-5.1-codex", "1x" },
+        { "gpt-5.1", "1x" },
+        { "gpt-5", "1x" },
+        { "gpt-5.1-codex-mini", "0.33x" },
+        { "gpt-5-mini", "0.33x" },
+        { "gpt-4.1", "0.33x" },
+        
+        // Gemini models
+        { "gemini-3-pro-preview", "1x" },
+    };
+
+    /// <summary>
+    /// Fetches the list of available models from the Copilot CLI as strings.
     /// </summary>
     /// <returns>Array of model names, or null if unavailable.</returns>
     public static async Task<string[]?> GetModelsFromCliAsync()
@@ -80,7 +114,38 @@ public static partial class ModelSelector
     }
 
     /// <summary>
-    /// Prompts the user to select a model from available options via console.
+    /// Fetches available models with pricing tier metadata.
+    /// </summary>
+    /// <returns>Dictionary mapping model names to their pricing tiers.</returns>
+    public static async Task<Dictionary<string, string>?> GetModelsWithPricingAsync()
+    {
+        var models = await GetModelsFromCliAsync();
+        
+        if (models == null || models.Length == 0)
+            return null;
+        
+        var result = new Dictionary<string, string>();
+        foreach (var model in models)
+        {
+            var pricing = ModelPricingTiers.TryGetValue(model, out var tier) ? tier : "unknown";
+            result[model] = pricing;
+        }
+        
+        return result;
+    }
+
+    /// <summary>
+    /// Gets pricing tier for a specific model.
+    /// </summary>
+    /// <param name="modelName">The model name.</param>
+    /// <returns>Pricing tier (1x, 0.33x, etc.), or "unknown" if not found.</returns>
+    public static string GetPricingTier(string modelName)
+    {
+        return ModelPricingTiers.TryGetValue(modelName, out var tier) ? tier : "unknown";
+    }
+
+    /// <summary>
+    /// Prompts the user to select a model from available options via console, showing pricing tiers.
     /// </summary>
     /// <returns>The selected model ID, or null if no models available.</returns>
     public static async Task<string?> SelectModelAsync()
@@ -106,7 +171,8 @@ public static partial class ModelSelector
         
         for (int i = 0; i < models.Length; i++)
         {
-            Console.WriteLine($"   {i + 1}. {models[i]}");
+            var pricing = GetPricingTier(models[i]);
+            Console.WriteLine($"   {i + 1}. {models[i],-30} ({pricing})");
         }
         
         Console.Write($"\nEnter choice (1-{models.Length}) [default: 1]: ");
@@ -118,8 +184,9 @@ public static partial class ModelSelector
         }
 
         var selected = models[index - 1];
+        var selectedPricing = GetPricingTier(selected);
         Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine($"✅ Selected: {selected}");
+        Console.WriteLine($"✅ Selected: {selected} ({selectedPricing})");
         Console.ResetColor();
         
         return selected;
