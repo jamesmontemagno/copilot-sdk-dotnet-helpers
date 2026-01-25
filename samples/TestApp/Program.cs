@@ -34,28 +34,30 @@ if (model == null)
 Console.WriteLine();
 
 // Step 3: Start Copilot client
-Console.WriteLine("🚀 Starting Copilot client...");
-
 CopilotClient? client = null;
 CopilotSession? session = null;
 
 try
 {
     client = new CopilotClient();
-    await client.StartAsync();
-    Console.ForegroundColor = ConsoleColor.Green;
-    Console.WriteLine("✅ Copilot client started!\n");
-    Console.ResetColor();
+    
+    await RunWithSpinnerAsync("Starting Copilot client", async () =>
+    {
+        await client.StartAsync();
+    });
 
     // Create session
-    Console.WriteLine($"📝 Creating session with model: {model}...");
-    session = await client.CreateSessionAsync(new SessionConfig
+    await RunWithSpinnerAsync($"Creating session with {model}", async () =>
     {
-        Model = model,
-        Streaming = true
+        session = await client.CreateSessionAsync(new SessionConfig
+        {
+            Model = model,
+            Streaming = true
+        });
     });
-    Console.ForegroundColor = ConsoleColor.Green;
-    Console.WriteLine($"✅ Session created! (ID: {session.SessionId})\n");
+    
+    Console.ForegroundColor = ConsoleColor.DarkGray;
+    Console.WriteLine($"   Session ID: {session!.SessionId}\n");
     Console.ResetColor();
 
     // Step 4: Interactive chat
@@ -97,4 +99,39 @@ finally
     if (client != null)
         await client.DisposeAsync();
     Console.WriteLine("\n🛑 Client stopped.");
+}
+
+/// <summary>
+/// Runs an async task with a spinner animation.
+/// </summary>
+static async Task RunWithSpinnerAsync(string message, Func<Task> action)
+{
+    var spinnerChars = new[] { '⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏' };
+    var cts = new CancellationTokenSource();
+    var spinnerTask = Task.Run(async () =>
+    {
+        int i = 0;
+        while (!cts.Token.IsCancellationRequested)
+        {
+            Console.Write($"\r{spinnerChars[i++ % spinnerChars.Length]} {message}...");
+            try { await Task.Delay(80, cts.Token); } catch { break; }
+        }
+    });
+
+    try
+    {
+        await action();
+        cts.Cancel();
+        await spinnerTask;
+        Console.Write($"\r✅ {message}...done!".PadRight(message.Length + 20));
+        Console.WriteLine();
+    }
+    catch
+    {
+        cts.Cancel();
+        await spinnerTask;
+        Console.Write($"\r❌ {message}...failed!".PadRight(message.Length + 20));
+        Console.WriteLine();
+        throw;
+    }
 }
