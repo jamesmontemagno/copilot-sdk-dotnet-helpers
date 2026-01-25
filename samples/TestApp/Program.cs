@@ -106,15 +106,22 @@ finally
 /// </summary>
 static async Task RunWithSpinnerAsync(string message, Func<Task> action)
 {
-    var spinnerChars = new[] { '⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏' };
+    var spinnerChars = new[] { '|', '/', '-', '\\' };
     var cts = new CancellationTokenSource();
+    
+    // Hide cursor for cleaner animation
+    Console.CursorVisible = false;
+    Console.Write($"  {message}...");
+    
     var spinnerTask = Task.Run(async () =>
     {
         int i = 0;
+        var left = Console.CursorLeft;
         while (!cts.Token.IsCancellationRequested)
         {
-            Console.Write($"\r{spinnerChars[i++ % spinnerChars.Length]} {message}...");
-            try { await Task.Delay(80, cts.Token); } catch { break; }
+            Console.SetCursorPosition(0, Console.CursorTop);
+            Console.Write(spinnerChars[i++ % spinnerChars.Length]);
+            try { await Task.Delay(100, cts.Token); } catch { break; }
         }
     });
 
@@ -123,15 +130,25 @@ static async Task RunWithSpinnerAsync(string message, Func<Task> action)
         await action();
         cts.Cancel();
         await spinnerTask;
-        Console.Write($"\r✅ {message}...done!".PadRight(message.Length + 20));
+        Console.SetCursorPosition(0, Console.CursorTop);
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.Write("✓");
+        Console.ResetColor();
         Console.WriteLine();
     }
     catch
     {
         cts.Cancel();
         await spinnerTask;
-        Console.Write($"\r❌ {message}...failed!".PadRight(message.Length + 20));
+        Console.SetCursorPosition(0, Console.CursorTop);
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.Write("✗");
+        Console.ResetColor();
         Console.WriteLine();
         throw;
+    }
+    finally
+    {
+        Console.CursorVisible = true;
     }
 }
