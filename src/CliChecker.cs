@@ -160,7 +160,23 @@ public static class CliChecker
             };
             
             process.Start();
-            await process.WaitForExitAsync();
+            
+            // Must read streams to avoid deadlock when buffer fills
+            var outputTask = process.StandardOutput.ReadToEndAsync();
+            var errorTask = process.StandardError.ReadToEndAsync();
+            
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            try
+            {
+                await process.WaitForExitAsync(cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                process.Kill();
+                return false;
+            }
+            
+            await Task.WhenAll(outputTask, errorTask);
             return process.ExitCode == 0;
         }
         catch
@@ -190,7 +206,23 @@ public static class CliChecker
             };
             
             process.Start();
-            await process.WaitForExitAsync();
+            
+            // Must read streams to avoid deadlock when buffer fills
+            var outputTask = process.StandardOutput.ReadToEndAsync();
+            var errorTask = process.StandardError.ReadToEndAsync();
+            
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            try
+            {
+                await process.WaitForExitAsync(cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                process.Kill();
+                return (false, "Copilot CLI timed out");
+            }
+            
+            await Task.WhenAll(outputTask, errorTask);
             
             // If CLI runs without error, we assume basic auth is OK
             // Full auth check would require actually making an API call

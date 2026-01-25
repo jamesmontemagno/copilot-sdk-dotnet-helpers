@@ -32,8 +32,24 @@ public static partial class ModelSelector
             };
             
             process.Start();
-            var output = await process.StandardOutput.ReadToEndAsync();
-            await process.WaitForExitAsync();
+            
+            // Read both streams to avoid deadlock
+            var outputTask = process.StandardOutput.ReadToEndAsync();
+            var errorTask = process.StandardError.ReadToEndAsync();
+            
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            try
+            {
+                await process.WaitForExitAsync(cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                process.Kill();
+                return null;
+            }
+            
+            var output = await outputTask;
+            await errorTask;
             
             if (process.ExitCode != 0)
                 return null;
