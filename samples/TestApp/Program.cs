@@ -83,7 +83,8 @@ try
             break;
         }
 
-        await ChatHelper.SendMessageAndStreamResponse(session, input);
+        // Show spinner while waiting for response
+        await SendMessageWithSpinnerAsync(session, input);
     }
 }
 catch (Exception ex)
@@ -150,5 +151,94 @@ static async Task RunWithSpinnerAsync(string message, Func<Task> action)
     finally
     {
         Console.CursorVisible = true;
+    }
+}
+
+/// <summary>
+/// Sends a message with a spinner while waiting for the first response.
+/// </summary>
+static async Task SendMessageWithSpinnerAsync(CopilotSession session, string message)
+{
+    var spinnerChars = new[] { '|', '/', '-', '\\' };
+    var done = new TaskCompletionSource();
+    var hasStartedResponse = false;
+    var spinnerCts = new CancellationTokenSource();
+    
+    // Start spinner
+    Console.CursorVisible = false;
+    Console.ForegroundColor = ConsoleColor.Green;
+    Console.Write("\nCopilot: ");
+    Console.ResetColor();
+    var spinnerLeft = Console.CursorLeft;
+    var spinnerTop = Console.CursorTop;
+    
+    var spinnerTask = Task.Run(async () =>
+    {
+        int i = 0;
+        while (!spinnerCts.Token.IsCancellationRequested)
+        {
+            Console.SetCursorPosition(spinnerLeft, spinnerTop);
+            Console.Write(spinnerChars[i++ % spinnerChars.Length]);
+            try { await Task.Delay(100, spinnerCts.Token); } catch { break; }
+        }
+    });
+
+    var subscription = session.On(evt =>
+    {
+        switch (evt)
+        {
+            case AssistantMessageDeltaEvent delta:
+                if (!hasStartedResponse)
+                {
+                    spinnerCts.Cancel();
+                    Console.SetCursorPosition(spinnerLeft, spinnerTop);
+                    Console.Write(" "); // Clear spinner
+                    Console.SetCursorPosition(spinnerLeft, spinnerTop);
+                    Console.CursorVisible = true;
+                    hasStartedResponse = true;
+                }
+                Console.Write(delta.Data.DeltaContent);
+                break;
+                
+            case AssistantMessageEvent msg:
+                if (!hasStartedResponse)
+                {
+                    spinnerCts.Cancel();
+                    Console.SetCursorPosition(spinnerLeft, spinnerTop);
+                    Console.Write(" ");
+                    Console.SetCursorPosition(spinnerLeft, spinnerTop);
+                    Console.CursorVisible = true;
+                    Console.Write(msg.Data.Content);
+                }
+                break;
+                
+            case SessionIdleEvent:
+                done.TrySetResult();
+                break;
+                
+            case SessionErrorEvent err:
+                spinnerCts.Cancel();
+                Console.CursorVisible = true;
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"\n❌ Error: {err.Data.Message}");
+                Console.ResetColor();
+                done.TrySetResult();
+                break;
+        }
+    });
+
+    try
+    {
+        await session.SendAsync(new MessageOptions { Prompt = message });
+        await done.Task;
+        spinnerCts.Cancel();
+        await spinnerTask;
+        Console.WriteLine("\n");
+    }
+    finally
+    {
+        spinnerCts.Cancel();
+        Console.CursorVisible = true;
+        subscription.Dispose();
     }
 }
