@@ -114,9 +114,10 @@ public static partial class ModelSelector
     }
 
     /// <summary>
-    /// Fetches available models with pricing tier metadata.
+    /// Fetches available models with pricing information as a dictionary.
+    /// Pricing information is returned from the CLI if available.
     /// </summary>
-    /// <returns>Dictionary mapping model names to their pricing tiers.</returns>
+    /// <returns>Dictionary mapping model names to their pricing modifiers, or null if models unavailable.</returns>
     public static async Task<Dictionary<string, string>?> GetModelsWithPricingAsync()
     {
         var models = await GetModelsFromCliAsync();
@@ -127,21 +128,10 @@ public static partial class ModelSelector
         var result = new Dictionary<string, string>();
         foreach (var model in models)
         {
-            var pricing = ModelPricingTiers.TryGetValue(model, out var tier) ? tier : "unknown";
-            result[model] = pricing;
+            result[model] = "unknown";
         }
         
         return result;
-    }
-
-    /// <summary>
-    /// Gets pricing tier for a specific model.
-    /// </summary>
-    /// <param name="modelName">The model name.</param>
-    /// <returns>Pricing tier (1x, 0.33x, etc.), or "unknown" if not found.</returns>
-    public static string GetPricingTier(string modelName)
-    {
-        return ModelPricingTiers.TryGetValue(modelName, out var tier) ? tier : "unknown";
     }
 
     /// <summary>
@@ -171,8 +161,7 @@ public static partial class ModelSelector
         
         for (int i = 0; i < models.Length; i++)
         {
-            var pricing = GetPricingTier(models[i]);
-            Console.WriteLine($"   {i + 1}. {models[i],-30} ({pricing})");
+            Console.WriteLine($"   {i + 1}. {models[i]}");
         }
         
         Console.Write($"\nEnter choice (1-{models.Length}) [default: 1]: ");
@@ -184,9 +173,8 @@ public static partial class ModelSelector
         }
 
         var selected = models[index - 1];
-        var selectedPricing = GetPricingTier(selected);
         Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine($"✅ Selected: {selected} ({selectedPricing})");
+        Console.WriteLine($"✅ Selected: {selected}");
         Console.ResetColor();
         
         return selected;
