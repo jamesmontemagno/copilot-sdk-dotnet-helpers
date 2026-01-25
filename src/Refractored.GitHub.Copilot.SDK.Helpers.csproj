@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    
+    <!-- NuGet Package Metadata -->
+    <PackageId>Refractored.GitHub.Copilot.SDK.Helpers</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>jamesmontemagno</Authors>
+    <Company>Refractored</Company>
+    <Description>Reusable helper utilities for the GitHub Copilot SDK for .NET. Includes CLI checking, model selection, and chat streaming helpers.</Description>
+    <PackageTags>github;copilot;sdk;helpers;ai;chat</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/jamesmontemagno/copilot-sdk-dotnet-helpers</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/jamesmontemagno/copilot-sdk-dotnet-helpers</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="GitHub.Copilot.SDK" Version="0.1.15" />
+  </ItemGroup>
+
+</Project>
