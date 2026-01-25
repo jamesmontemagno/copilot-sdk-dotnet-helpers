@@ -86,6 +86,43 @@ await ChatHelper.SendMessageWithCallbacksAsync(
 );
 ```
 
+### SessionManager
+Manages Copilot sessions including listing, resuming, and cleanup.
+
+```csharp
+using GitHub.Copilot.SDK;
+using Refractored.GitHub.Copilot.SDK.Helpers;
+
+// List all available sessions with formatted console output
+var sessions = await SessionManager.ListSessionsAsync();
+
+// Get sessions without console output
+var sessions = await SessionManager.GetSessionsAsync();
+
+// Get the most recently used session ID
+var lastSessionId = await SessionManager.GetLastSessionIdAsync();
+
+// Resume the last session
+var client = new CopilotClient();
+await client.StartAsync();
+var session = await SessionManager.ResumeLastSessionAsync(client);
+
+// Delete a specific session
+await SessionManager.DeleteSessionAsync("session-id-123");
+
+// Clean up old sessions (older than 7 days)
+int deletedCount = await SessionManager.CleanupOldSessionsAsync(TimeSpan.FromDays(7));
+
+// Get CLI version and protocol information
+var status = await SessionManager.ShowCliStatusAsync();
+Console.WriteLine($"CLI Version: {status.Version}");
+
+// Optionally pass an existing CopilotClient to reuse the connection
+var client = new CopilotClient();
+await client.StartAsync();
+var sessions = await SessionManager.GetSessionsAsync(client);
+```
+
 ## Prerequisites
 
 - **.NET 8.0**, **.NET 9.0**, or **.NET 10.0**
