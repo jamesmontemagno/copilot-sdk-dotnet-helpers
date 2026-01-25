@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using GitHub.Copilot.SDK;
 
 namespace Refractored.GitHub.Copilot.SDK.Helpers;
 
@@ -187,46 +188,14 @@ public static class CliChecker
 
     private static async Task<(bool isAuthenticated, string? error)> CheckCopilotAuthAsync()
     {
-        if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GH_TOKEN")))
-        {
-            return (true, null);
-        }
-        
         try
         {
-            using var process = new Process();
-            process.StartInfo = new ProcessStartInfo
-            {
-                FileName = "copilot",
-                Arguments = "--help",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
+            await using var client = new CopilotClient();
+            var authStatus = await client.GetAuthStatusAsync();
             
-            process.Start();
-            
-            // Must read streams to avoid deadlock when buffer fills
-            var outputTask = process.StandardOutput.ReadToEndAsync();
-            var errorTask = process.StandardError.ReadToEndAsync();
-            
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            try
-            {
-                await process.WaitForExitAsync(cts.Token);
-            }
-            catch (OperationCanceledException)
-            {
-                process.Kill();
-                return (false, "Copilot CLI timed out");
-            }
-            
-            await Task.WhenAll(outputTask, errorTask);
-            
-            // If CLI runs without error, we assume basic auth is OK
-            // Full auth check would require actually making an API call
-            return (process.ExitCode == 0, null);
+            // Check if properly authenticated - user should have a login name
+            var isAuthenticated = !string.IsNullOrEmpty(authStatus.Login);
+            return (isAuthenticated, authStatus.StatusMessage);
         }
         catch (Exception ex)
         {

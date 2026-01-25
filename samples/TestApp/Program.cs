@@ -21,32 +21,48 @@ if (!CliChecker.IsReady(status))
     return;
 }
 
-// Step 2: Select model
-var model = await ModelSelector.SelectModelAsync();
-if (model == null)
-{
-    Console.ForegroundColor = ConsoleColor.Yellow;
-    Console.WriteLine("Press any key to exit...");
-    Console.ResetColor();
-    Console.ReadKey(true);
-    return;
-}
-Console.WriteLine();
+// Step 2: Display available models with billing info
+Console.ForegroundColor = ConsoleColor.Cyan;
+Console.WriteLine("📊 Available Models & Billing Info:\n");
+Console.ResetColor();
 
-// Step 3: Start Copilot client
 CopilotClient? client = null;
 CopilotSession? session = null;
 
 try
 {
     client = new CopilotClient();
+    await client.StartAsync();
     
-    await RunWithSpinnerAsync("Starting Copilot client", async () =>
+    var modelsWithInfo = await ModelSelector.GetModelsWithInfoAsync(client);
+    if (modelsWithInfo != null && modelsWithInfo.Length > 0)
     {
-        await client.StartAsync();
-    });
+        Console.ForegroundColor = ConsoleColor.DarkGray;
+        Console.WriteLine("   Model                          Multiplier");
+        Console.WriteLine("   ─────────────────────────────  ──────────");
+        Console.ResetColor();
+        
+        foreach (var modelInfo in modelsWithInfo)
+        {
+            var multiplier = modelInfo.Billing?.Multiplier.ToString("F2") ?? "N/A";
+            Console.WriteLine($"   {modelInfo.Id,-30} {multiplier,10}");
+        }
+        Console.WriteLine();
+    }
 
-    // Create session
+    // Step 3: Select model
+    var model = await ModelSelector.SelectModelAsync();
+    if (model == null)
+    {
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine("Press any key to exit...");
+        Console.ResetColor();
+        Console.ReadKey(true);
+        return;
+    }
+    Console.WriteLine();
+
+    // Step 4: Create session
     await RunWithSpinnerAsync($"Creating session with {model}", async () =>
     {
         session = await client.CreateSessionAsync(new SessionConfig
@@ -60,7 +76,7 @@ try
     Console.WriteLine($"   Session ID: {session!.SessionId}\n");
     Console.ResetColor();
 
-    // Step 4: Interactive chat
+    // Step 5: Interactive chat
     Console.ForegroundColor = ConsoleColor.Yellow;
     Console.WriteLine("💬 Interactive Chat - Type 'exit' to quit\n");
     Console.ResetColor();

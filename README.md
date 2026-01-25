@@ -14,7 +14,7 @@ dotnet add package Refractored.GitHub.Copilot.SDK.Helpers
 ## Features
 
 ### CliChecker
-Checks if the Copilot CLI is installed and the user is authenticated.
+Checks if the Copilot CLI is installed and the user is authenticated using the Copilot SDK.
 
 ```csharp
 using Refractored.GitHub.Copilot.SDK.Helpers;
@@ -33,7 +33,7 @@ if (!CliChecker.IsReady(status))
 ```
 
 ### ModelSelector
-Fetches available models from the Copilot CLI and allows selection.
+Fetches available models from the Copilot SDK and allows selection.
 
 ```csharp
 using Refractored.GitHub.Copilot.SDK.Helpers;
@@ -41,14 +41,26 @@ using Refractored.GitHub.Copilot.SDK.Helpers;
 // Interactive selection via console
 var model = await ModelSelector.SelectModelAsync();
 
-// Get all available models
-var models = await ModelSelector.GetModelsFromCliAsync();
+// Get all available models (names only)
+var models = await ModelSelector.GetModelsAsync();
+
+// Get models with full info including billing multipliers
+var modelsInfo = await ModelSelector.GetModelsWithInfoAsync();
+foreach (var modelInfo in modelsInfo)
+{
+    Console.WriteLine($"{modelInfo.Id}: Multiplier = {modelInfo.Billing?.Multiplier}");
+}
 
 // Get the default (first) model
 var defaultModel = await ModelSelector.GetDefaultModelAsync();
 
 // Select by index (0-based)
 var model = await ModelSelector.SelectModelByIndexAsync(2);
+
+// Optionally pass an existing CopilotClient to reuse the connection
+var client = new CopilotClient();
+await client.StartAsync();
+var models = await ModelSelector.GetModelsAsync(client);
 ```
 
 ### ChatHelper
