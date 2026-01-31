@@ -12,9 +12,10 @@ public static class ModelSelector
     /// Fetches the list of available models with full information from the Copilot SDK.
     /// </summary>
     /// <param name="client">The CopilotClient instance to use. If null, a new client will be created and disposed.</param>
+    /// <param name="modelFilterString">Optional filter string to narrow down model selection.</param>
     /// <param name="cancellationToken">Cancellation token for the operation.</param>
     /// <returns>Array of ModelInfo containing model details including ID and multiplier, or null if unavailable.</returns>
-    public static async Task<ModelInfo[]?> GetModelsWithInfoAsync(CopilotClient? client = null, CancellationToken cancellationToken = default)
+    public static async Task<ModelInfo[]?> GetModelsWithInfoAsync(CopilotClient? client = null, string? modelFilterString = null, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -24,7 +25,9 @@ public static class ModelSelector
             try
             {
                 var models = await client.ListModelsAsync(cancellationToken);
-                return models?.ToArray();
+                return models
+                    ?.Where(m => string.IsNullOrEmpty(modelFilterString) || m.Id.Contains(modelFilterString, StringComparison.OrdinalIgnoreCase))
+                    .ToArray();
             }
             finally
             {
@@ -44,9 +47,10 @@ public static class ModelSelector
     /// Fetches the list of available models from the Copilot SDK.
     /// </summary>
     /// <param name="client">The CopilotClient instance to use. If null, a new client will be created and disposed.</param>
+    /// <param name="modelFilterString">Optional filter string to narrow down model selection.</param>
     /// <param name="cancellationToken">Cancellation token for the operation.</param>
     /// <returns>Array of model names, or null if unavailable.</returns>
-    public static async Task<string[]?> GetModelsAsync(CopilotClient? client = null, CancellationToken cancellationToken = default)
+    public static async Task<string[]?> GetModelsAsync(CopilotClient? client = null, string? modelFilterString = null, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -56,7 +60,10 @@ public static class ModelSelector
             try
             {
                 var models = await client.ListModelsAsync(cancellationToken);
-                return models?.Select(m => m.Id).ToArray();
+
+                return models?
+                    .Where(m => string.IsNullOrEmpty(modelFilterString) || m.Id.Contains(modelFilterString, StringComparison.OrdinalIgnoreCase))
+                    .Select(m => m.Id).ToArray();
             }
             finally
             {
@@ -75,15 +82,16 @@ public static class ModelSelector
     /// <summary>
     /// Prompts the user to select a model from available options via console.
     /// </summary>
+    /// <param name="modelFilterString">Optional filter string to narrow down model selection.</param>
     /// <returns>The selected model ID, or null if no models available.</returns>
-    public static async Task<string?> SelectModelAsync()
+    public static async Task<string?> SelectModelAsync(string? modelFilterString = null)
     {
         Console.ForegroundColor = ConsoleColor.DarkGray;
         Console.WriteLine("   Fetching available models from Copilot SDK...");
         Console.ResetColor();
-        
-        var models = await GetModelsAsync();
-        
+
+        var models = await GetModelsAsync(modelFilterString: modelFilterString);
+
         if (models == null || models.Length == 0)
         {
             Console.ForegroundColor = ConsoleColor.Red;
