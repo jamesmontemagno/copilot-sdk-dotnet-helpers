@@ -73,16 +73,19 @@ public static class ModelSelector
     }
 
     /// <summary>
-    /// Prompts the user to select a model from available options via console.
+    /// Prompts the user to select a model from available options via console,
+    /// displaying model details including reasoning support.
     /// </summary>
+    /// <param name="showDetails">Whether to show billing multiplier and reasoning support (default: true).</param>
     /// <returns>The selected model ID, or null if no models available.</returns>
-    public static async Task<string?> SelectModelAsync()
+    public static async Task<string?> SelectModelAsync(bool showDetails = true)
     {
         Console.ForegroundColor = ConsoleColor.DarkGray;
         Console.WriteLine("   Fetching available models from Copilot SDK...");
         Console.ResetColor();
         
-        var models = await GetModelsAsync();
+        var modelsWithInfo = showDetails ? await GetModelsWithInfoAsync() : null;
+        var models = modelsWithInfo?.Select(m => m.Id).ToArray() ?? await GetModelsAsync();
         
         if (models == null || models.Length == 0)
         {
@@ -99,7 +102,19 @@ public static class ModelSelector
         
         for (int i = 0; i < models.Length; i++)
         {
-            Console.WriteLine($"   {i + 1}. {models[i]}");
+            var extras = "";
+            if (modelsWithInfo != null && i < modelsWithInfo.Length)
+            {
+                var info = modelsWithInfo[i];
+                var parts = new List<string>();
+                if (info.Billing?.Multiplier is { } mult)
+                    parts.Add($"{mult:F1}x");
+                if (info.SupportedReasoningEfforts is { Count: > 0 })
+                    parts.Add("reasoning");
+                if (parts.Count > 0)
+                    extras = $" ({string.Join(", ", parts)})";
+            }
+            Console.WriteLine($"   {i + 1}. {models[i]}{extras}");
         }
         
         Console.Write($"\nEnter choice (1-{models.Length}) [default: 1]: ");

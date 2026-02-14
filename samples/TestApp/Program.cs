@@ -38,14 +38,15 @@ try
     if (modelsWithInfo != null && modelsWithInfo.Length > 0)
     {
         Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine("   Model                          Multiplier");
-        Console.WriteLine("   ─────────────────────────────  ──────────");
+        Console.WriteLine("   Model                          Multiplier  Reasoning");
+        Console.WriteLine("   ─────────────────────────────  ──────────  ─────────");
         Console.ResetColor();
         
         foreach (var modelInfo in modelsWithInfo)
         {
             var multiplier = modelInfo.Billing?.Multiplier.ToString("F2") ?? "N/A";
-            Console.WriteLine($"   {modelInfo.Id,-30} {multiplier,10}");
+            var reasoning = modelInfo.SupportedReasoningEfforts is { Count: > 0 } ? "Yes" : "No";
+            Console.WriteLine($"   {modelInfo.Id,-30} {multiplier,10}  {reasoning,9}");
         }
         Console.WriteLine();
     }
@@ -199,18 +200,45 @@ static async Task SendMessageWithSpinnerAsync(CopilotSession session, string mes
         }
     });
 
+    var hasStartedReasoning = false;
+
     var subscription = session.On(evt =>
     {
         switch (evt)
         {
-            case AssistantMessageDeltaEvent delta:
-                if (!hasStartedResponse)
+            case AssistantReasoningDeltaEvent reasoningDelta:
+                if (!hasStartedReasoning)
                 {
                     spinnerCts.Cancel();
                     Console.SetCursorPosition(spinnerLeft, spinnerTop);
                     Console.Write(" "); // Clear spinner
                     Console.SetCursorPosition(spinnerLeft, spinnerTop);
                     Console.CursorVisible = true;
+                    Console.ForegroundColor = ConsoleColor.DarkGray;
+                    Console.Write("💭 ");
+                    hasStartedReasoning = true;
+                }
+                Console.Write(reasoningDelta.Data.DeltaContent);
+                break;
+
+            case AssistantMessageDeltaEvent delta:
+                if (!hasStartedResponse)
+                {
+                    if (hasStartedReasoning)
+                    {
+                        Console.ResetColor();
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.Write("\nCopilot: ");
+                        Console.ResetColor();
+                    }
+                    else
+                    {
+                        spinnerCts.Cancel();
+                        Console.SetCursorPosition(spinnerLeft, spinnerTop);
+                        Console.Write(" "); // Clear spinner
+                        Console.SetCursorPosition(spinnerLeft, spinnerTop);
+                        Console.CursorVisible = true;
+                    }
                     hasStartedResponse = true;
                 }
                 Console.Write(delta.Data.DeltaContent);
@@ -219,11 +247,21 @@ static async Task SendMessageWithSpinnerAsync(CopilotSession session, string mes
             case AssistantMessageEvent msg:
                 if (!hasStartedResponse)
                 {
-                    spinnerCts.Cancel();
-                    Console.SetCursorPosition(spinnerLeft, spinnerTop);
-                    Console.Write(" ");
-                    Console.SetCursorPosition(spinnerLeft, spinnerTop);
-                    Console.CursorVisible = true;
+                    if (hasStartedReasoning)
+                    {
+                        Console.ResetColor();
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.Write("\nCopilot: ");
+                        Console.ResetColor();
+                    }
+                    else
+                    {
+                        spinnerCts.Cancel();
+                        Console.SetCursorPosition(spinnerLeft, spinnerTop);
+                        Console.Write(" ");
+                        Console.SetCursorPosition(spinnerLeft, spinnerTop);
+                        Console.CursorVisible = true;
+                    }
                     Console.Write(msg.Data.Content);
                 }
                 break;

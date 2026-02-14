@@ -68,6 +68,89 @@ public static class ChatHelper
     }
 
     /// <summary>
+    /// Sends a message and streams the response to the console with colored output,
+    /// including reasoning content for models that support it.
+    /// </summary>
+    /// <param name="session">The Copilot session.</param>
+    /// <param name="message">The message to send.</param>
+    /// <param name="showReasoning">Whether to display reasoning content (default: true).</param>
+    public static async Task SendMessageAndStreamResponseWithReasoning(CopilotSession session, string message, bool showReasoning = true)
+    {
+        var done = new TaskCompletionSource();
+        var hasStartedResponse = false;
+        var hasStartedReasoning = false;
+
+        var subscription = session.On(evt =>
+        {
+            switch (evt)
+            {
+                case AssistantReasoningDeltaEvent reasoningDelta when showReasoning:
+                    if (!hasStartedReasoning)
+                    {
+                        Console.ForegroundColor = ConsoleColor.DarkGray;
+                        Console.Write("\n💭 Reasoning: ");
+                        hasStartedReasoning = true;
+                    }
+                    Console.Write(reasoningDelta.Data.DeltaContent);
+                    break;
+
+                case AssistantMessageDeltaEvent delta:
+                    if (!hasStartedResponse)
+                    {
+                        if (hasStartedReasoning)
+                        {
+                            Console.ResetColor();
+                            Console.WriteLine();
+                        }
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.Write("\nCopilot: ");
+                        Console.ResetColor();
+                        hasStartedResponse = true;
+                    }
+                    Console.Write(delta.Data.DeltaContent);
+                    break;
+
+                case AssistantMessageEvent msg:
+                    if (!hasStartedResponse)
+                    {
+                        if (hasStartedReasoning)
+                        {
+                            Console.ResetColor();
+                            Console.WriteLine();
+                        }
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.Write("\nCopilot: ");
+                        Console.ResetColor();
+                        Console.Write(msg.Data.Content);
+                    }
+                    break;
+
+                case SessionIdleEvent:
+                    done.TrySetResult();
+                    break;
+
+                case SessionErrorEvent err:
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine($"\n❌ Error: {err.Data.Message}");
+                    Console.ResetColor();
+                    done.TrySetResult();
+                    break;
+            }
+        });
+
+        try
+        {
+            await session.SendAsync(new MessageOptions { Prompt = message });
+            await done.Task;
+            Console.WriteLine("\n");
+        }
+        finally
+        {
+            subscription.Dispose();
+        }
+    }
+
+    /// <summary>
     /// Sends a message and streams the response, invoking callbacks for each event.
     /// </summary>
     /// <param name="session">The Copilot session.</param>
@@ -88,6 +171,64 @@ public static class ChatHelper
         {
             switch (evt)
             {
+                case AssistantMessageDeltaEvent delta:
+                    onDelta(delta.Data.DeltaContent);
+                    break;
+                    
+                case AssistantMessageEvent msg:
+                    onDelta(msg.Data.Content);
+                    break;
+                    
+                case SessionIdleEvent:
+                    onComplete?.Invoke();
+                    done.TrySetResult();
+                    break;
+                    
+                case SessionErrorEvent err:
+                    onError?.Invoke(err.Data.Message);
+                    done.TrySetResult();
+                    break;
+            }
+        });
+
+        try
+        {
+            await session.SendAsync(new MessageOptions { Prompt = message });
+            await done.Task;
+        }
+        finally
+        {
+            subscription.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Sends a message and streams the response, invoking callbacks including reasoning events.
+    /// </summary>
+    /// <param name="session">The Copilot session.</param>
+    /// <param name="message">The message to send.</param>
+    /// <param name="onDelta">Callback for each content delta.</param>
+    /// <param name="onReasoningDelta">Callback for each reasoning delta (optional).</param>
+    /// <param name="onComplete">Callback when response is complete (optional).</param>
+    /// <param name="onError">Callback on error (optional).</param>
+    public static async Task SendMessageWithCallbacksAsync(
+        CopilotSession session,
+        string message,
+        Action<string> onDelta,
+        Action<string>? onReasoningDelta,
+        Action? onComplete = null,
+        Action<string>? onError = null)
+    {
+        var done = new TaskCompletionSource();
+
+        var subscription = session.On(evt =>
+        {
+            switch (evt)
+            {
+                case AssistantReasoningDeltaEvent reasoningDelta:
+                    onReasoningDelta?.Invoke(reasoningDelta.Data.DeltaContent);
+                    break;
+
                 case AssistantMessageDeltaEvent delta:
                     onDelta(delta.Data.DeltaContent);
                     break;

@@ -257,6 +257,72 @@ public static class SessionManager
     }
 
     /// <summary>
+    /// Gets the foreground session ID (only available in TUI+server mode).
+    /// </summary>
+    /// <param name="client">The CopilotClient instance to use. If null, a new client will be created and disposed.</param>
+    /// <param name="cancellationToken">Cancellation token for the operation.</param>
+    /// <returns>The foreground session ID, or null if unavailable.</returns>
+    public static async Task<string?> GetForegroundSessionIdAsync(CopilotClient? client = null, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var shouldDispose = client == null;
+            client ??= new CopilotClient();
+            
+            try
+            {
+                await client.StartAsync(cancellationToken);
+                return await client.GetForegroundSessionIdAsync(cancellationToken);
+            }
+            finally
+            {
+                if (shouldDispose)
+                {
+                    await client.DisposeAsync();
+                }
+            }
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Sets the foreground session in TUI mode.
+    /// </summary>
+    /// <param name="sessionId">The session ID to bring to the foreground.</param>
+    /// <param name="client">The CopilotClient instance to use. If null, a new client will be created and disposed.</param>
+    /// <param name="cancellationToken">Cancellation token for the operation.</param>
+    /// <returns>True if successful, false otherwise.</returns>
+    public static async Task<bool> SetForegroundSessionIdAsync(string sessionId, CopilotClient? client = null, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var shouldDispose = client == null;
+            client ??= new CopilotClient();
+            
+            try
+            {
+                await client.StartAsync(cancellationToken);
+                await client.SetForegroundSessionIdAsync(sessionId, cancellationToken);
+                return true;
+            }
+            finally
+            {
+                if (shouldDispose)
+                {
+                    await client.DisposeAsync();
+                }
+            }
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Displays the CLI status information in the console.
     /// </summary>
     /// <param name="client">The CopilotClient instance to use. If null, a new client will be created and disposed.</param>
